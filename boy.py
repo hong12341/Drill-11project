@@ -17,6 +17,7 @@ class Boy:
         self.last_frame_time = get_time()
         self.last_update_time = self.last_frame_time
         self.idle_started_at = get_time()
+        self.auto_run_started_at = self.last_update_time
         image_path = os.path.join(os.path.dirname(__file__), 'animation_sheet.png')
         self.image = load_image(image_path)
         self.machine = Machine(
@@ -26,7 +27,8 @@ class Boy:
             transitions=[
                 {'trigger': 'start_running', 'source': 'idle', 'dest': 'run', 'after': 'enter_run'},
                 {'trigger': 'start_running', 'source': 'sleep', 'dest': 'run', 'after': 'enter_run'},
-                {'trigger': 'start_auto_run', 'source': 'idle', 'dest': 'auto_run', 'after': 'enter_run'},
+                {'trigger': 'start_auto_run', 'source': 'idle', 'dest': 'auto_run', 'after': 'enter_auto_run'},
+                {'trigger': 'end_auto_run', 'source': 'auto_run', 'dest': 'idle', 'after': 'start_idle_timer'},
                 {'trigger': 'stop_running', 'source': 'run', 'dest': 'idle', 'after': 'start_idle_timer'},
                 {'trigger': 'fall_asleep', 'source': 'idle', 'dest': 'sleep', 'after': 'enter_sleep'},
                 {'trigger': 'wake_up', 'source': 'sleep', 'dest': 'idle', 'after': 'start_idle_timer'},
@@ -40,6 +42,9 @@ class Boy:
                 self.fall_asleep()
                 return
             self.update_animation(now)
+        elif self.state == 'auto_run' and now - self.auto_run_started_at >= 5.0:
+            self.end_auto_run()
+            return
         elif self.state in ('run', 'auto_run'):
             elapsed = now - self.last_update_time
             self.x += self.face_dir * self.run_speed * elapsed
@@ -83,6 +88,10 @@ class Boy:
         self.frame = 0
         self.last_frame_time = get_time()
         self.last_update_time = self.last_frame_time
+
+    def enter_auto_run(self):
+        self.enter_run()
+        self.auto_run_started_at = self.last_update_time
 
     def enter_sleep(self):
         self.frame = 0
