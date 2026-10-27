@@ -3,10 +3,12 @@ import os
 from pico2d import get_time, load_image
 from transitions import Machine
 
+from auto_run_state import AutoRunState
+
+
 class Boy:
     CANVAS_WIDTH = 800
     SPRITE_HALF_WIDTH = 50
-    AUTO_RUN_MULTIPLIER = 2
 
     def __init__(self):
         self.x, self.y = 400, 90
@@ -18,7 +20,7 @@ class Boy:
         self.last_frame_time = get_time()
         self.last_update_time = self.last_frame_time
         self.idle_started_at = get_time()
-        self.auto_run_started_at = self.last_update_time
+        self.auto_run_state = AutoRunState(self)
         image_path = os.path.join(os.path.dirname(__file__), 'animation_sheet.png')
         self.image = load_image(image_path)
         self.machine = Machine(
@@ -44,26 +46,16 @@ class Boy:
                 self.fall_asleep()
                 return
             self.update_animation(now)
-        elif self.state == 'auto_run' and now - self.auto_run_started_at >= 5.0:
-            self.end_auto_run()
+        elif self.state == 'auto_run':
+            self.auto_run_state.update(now)
             return
-        elif self.state in ('run', 'auto_run'):
+        elif self.state == 'run':
             elapsed = now - self.last_update_time
-            speed_multiplier = self.AUTO_RUN_MULTIPLIER if self.state == 'auto_run' else 1
-            self.x += self.face_dir * self.run_speed * speed_multiplier * elapsed
-            if self.state == 'auto_run':
-                sprite_half_width = self.SPRITE_HALF_WIDTH * self.AUTO_RUN_MULTIPLIER
-                if self.x >= self.CANVAS_WIDTH - sprite_half_width:
-                    self.x = self.CANVAS_WIDTH - sprite_half_width
-                    self.face_dir = -1
-                elif self.x <= sprite_half_width:
-                    self.x = sprite_half_width
-                    self.face_dir = 1
-            else:
-                self.x = max(
-                    self.SPRITE_HALF_WIDTH,
-                    min(self.x, self.CANVAS_WIDTH - self.SPRITE_HALF_WIDTH),
-                )
+            self.x += self.face_dir * self.run_speed * elapsed
+            self.x = max(
+                self.SPRITE_HALF_WIDTH,
+                min(self.x, self.CANVAS_WIDTH - self.SPRITE_HALF_WIDTH),
+            )
             self.update_animation(now)
         self.last_update_time = now
 
@@ -77,7 +69,7 @@ class Boy:
         self.pressed_directions.add(direction)
         self.face_dir = direction
         if self.state == 'auto_run':
-            self.cancel_auto_run()
+            self.auto_run_state.cancel()
         elif self.state in ('idle', 'sleep'):
             self.start_running()
 
@@ -96,8 +88,7 @@ class Boy:
         self.last_update_time = self.last_frame_time
 
     def enter_auto_run(self):
-        self.enter_run()
-        self.auto_run_started_at = self.last_update_time
+        self.auto_run_state.enter()
 
     def enter_sleep(self):
         self.frame = 0
@@ -117,14 +108,13 @@ class Boy:
             )
             return
 
-        if self.state in ('run', 'auto_run'):
+        if self.state == 'auto_run':
+            self.auto_run_state.draw()
+            return
+
+        if self.state == 'run':
             row_y = 100 if self.face_dir == 1 else 0
-            size_multiplier = self.AUTO_RUN_MULTIPLIER if self.state == 'auto_run' else 1
-            draw_size = 100 * size_multiplier
-            draw_y = self.y + (draw_size - 100) * 0.4
-            self.image.clip_draw(
-                self.frame * 100, row_y, 100, 100, self.x, draw_y, draw_size, draw_size
-            )
+            self.image.clip_draw(self.frame * 100, row_y, 100, 100, self.x, self.y)
             return
 
         if self.face_dir == 1:
