@@ -121,8 +121,9 @@ class Boy:
             row_y = 100 if self.face_dir == 1 else 0
             size_multiplier = self.AUTO_RUN_MULTIPLIER if self.state == 'auto_run' else 1
             draw_size = 100 * size_multiplier
+            draw_y = self.y + (draw_size - 100) / 2
             self.image.clip_draw(
-                self.frame * 100, row_y, 100, 100, self.x, self.y, draw_size, draw_size
+                self.frame * 100, row_y, 100, 100, self.x, draw_y, draw_size, draw_size
             )
             return
 
