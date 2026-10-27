@@ -6,6 +6,7 @@ from transitions import Machine
 class Boy:
     CANVAS_WIDTH = 800
     SPRITE_HALF_WIDTH = 50
+    AUTO_RUN_MULTIPLIER = 2
 
     def __init__(self):
         self.x, self.y = 400, 90
@@ -28,6 +29,7 @@ class Boy:
                 {'trigger': 'start_running', 'source': 'idle', 'dest': 'run', 'after': 'enter_run'},
                 {'trigger': 'start_running', 'source': 'sleep', 'dest': 'run', 'after': 'enter_run'},
                 {'trigger': 'start_auto_run', 'source': 'idle', 'dest': 'auto_run', 'after': 'enter_auto_run'},
+                {'trigger': 'cancel_auto_run', 'source': 'auto_run', 'dest': 'run', 'after': 'enter_run'},
                 {'trigger': 'end_auto_run', 'source': 'auto_run', 'dest': 'idle', 'after': 'start_idle_timer'},
                 {'trigger': 'stop_running', 'source': 'run', 'dest': 'idle', 'after': 'start_idle_timer'},
                 {'trigger': 'fall_asleep', 'source': 'idle', 'dest': 'sleep', 'after': 'enter_sleep'},
@@ -47,13 +49,15 @@ class Boy:
             return
         elif self.state in ('run', 'auto_run'):
             elapsed = now - self.last_update_time
-            self.x += self.face_dir * self.run_speed * elapsed
+            speed_multiplier = self.AUTO_RUN_MULTIPLIER if self.state == 'auto_run' else 1
+            self.x += self.face_dir * self.run_speed * speed_multiplier * elapsed
             if self.state == 'auto_run':
-                if self.x >= self.CANVAS_WIDTH - self.SPRITE_HALF_WIDTH:
-                    self.x = self.CANVAS_WIDTH - self.SPRITE_HALF_WIDTH
+                sprite_half_width = self.SPRITE_HALF_WIDTH * self.AUTO_RUN_MULTIPLIER
+                if self.x >= self.CANVAS_WIDTH - sprite_half_width:
+                    self.x = self.CANVAS_WIDTH - sprite_half_width
                     self.face_dir = -1
-                elif self.x <= self.SPRITE_HALF_WIDTH:
-                    self.x = self.SPRITE_HALF_WIDTH
+                elif self.x <= sprite_half_width:
+                    self.x = sprite_half_width
                     self.face_dir = 1
             else:
                 self.x = max(
@@ -72,7 +76,9 @@ class Boy:
     def press_direction(self, direction):
         self.pressed_directions.add(direction)
         self.face_dir = direction
-        if self.state in ('idle', 'sleep'):
+        if self.state == 'auto_run':
+            self.cancel_auto_run()
+        elif self.state in ('idle', 'sleep'):
             self.start_running()
 
     def release_direction(self, direction):
@@ -113,7 +119,11 @@ class Boy:
 
         if self.state in ('run', 'auto_run'):
             row_y = 100 if self.face_dir == 1 else 0
-            self.image.clip_draw(self.frame * 100, row_y, 100, 100, self.x, self.y)
+            size_multiplier = self.AUTO_RUN_MULTIPLIER if self.state == 'auto_run' else 1
+            draw_size = 100 * size_multiplier
+            self.image.clip_draw(
+                self.frame * 100, row_y, 100, 100, self.x, self.y, draw_size, draw_size
+            )
             return
 
         if self.face_dir == 1:
