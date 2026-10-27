@@ -21,11 +21,12 @@ class Boy:
         self.image = load_image(image_path)
         self.machine = Machine(
             model=self,
-            states=['idle', 'run', 'sleep'],
+            states=['idle', 'run', 'sleep', 'auto_run'],
             initial='idle',
             transitions=[
                 {'trigger': 'start_running', 'source': 'idle', 'dest': 'run', 'after': 'enter_run'},
                 {'trigger': 'start_running', 'source': 'sleep', 'dest': 'run', 'after': 'enter_run'},
+                {'trigger': 'start_auto_run', 'source': 'idle', 'dest': 'auto_run', 'after': 'enter_run'},
                 {'trigger': 'stop_running', 'source': 'run', 'dest': 'idle', 'after': 'start_idle_timer'},
                 {'trigger': 'fall_asleep', 'source': 'idle', 'dest': 'sleep', 'after': 'enter_sleep'},
                 {'trigger': 'wake_up', 'source': 'sleep', 'dest': 'idle', 'after': 'start_idle_timer'},
@@ -39,13 +40,21 @@ class Boy:
                 self.fall_asleep()
                 return
             self.update_animation(now)
-        elif self.state == 'run':
+        elif self.state in ('run', 'auto_run'):
             elapsed = now - self.last_update_time
             self.x += self.face_dir * self.run_speed * elapsed
-            self.x = max(
-                self.SPRITE_HALF_WIDTH,
-                min(self.x, self.CANVAS_WIDTH - self.SPRITE_HALF_WIDTH),
-            )
+            if self.state == 'auto_run':
+                if self.x >= self.CANVAS_WIDTH - self.SPRITE_HALF_WIDTH:
+                    self.x = self.CANVAS_WIDTH - self.SPRITE_HALF_WIDTH
+                    self.face_dir = -1
+                elif self.x <= self.SPRITE_HALF_WIDTH:
+                    self.x = self.SPRITE_HALF_WIDTH
+                    self.face_dir = 1
+            else:
+                self.x = max(
+                    self.SPRITE_HALF_WIDTH,
+                    min(self.x, self.CANVAS_WIDTH - self.SPRITE_HALF_WIDTH),
+                )
             self.update_animation(now)
         self.last_update_time = now
 
@@ -93,7 +102,7 @@ class Boy:
             )
             return
 
-        if self.state == 'run':
+        if self.state in ('run', 'auto_run'):
             row_y = 100 if self.face_dir == 1 else 0
             self.image.clip_draw(self.frame * 100, row_y, 100, 100, self.x, self.y)
             return
